@@ -16,7 +16,7 @@
     const holdTime = Number.parseFloat($page.url.searchParams.get('hold') || '') || DEFAULT_HOLD_DURATION;
     const minimumLoop = Number.parseFloat($page.url.searchParams.get('loop') || '') || 10;
     const refreshEvery = Number.parseFloat($page.url.searchParams.get('refresh') || '') || 30;
-    const calendarUpdate = Number.parseFloat($page.url.searchParams.get('calendar') || '') || 300;
+    const calendarUpdate = Number.parseFloat($page.url.searchParams.get('calendar') || '') || 300000;
 
     
 
@@ -78,7 +78,7 @@
 
     async function updateHours() {
         hours = await getOpenHours();
-        window.setTimeout(updateHours, calendarUpdate * 1000);
+        window.setTimeout(updateHours, calendarUpdate);
     }
 
     async function load() {
@@ -283,9 +283,9 @@
     load();
 </script>
 
-<div class="bg">
+<div class="page">
     <div class="content">
-        <div class="status">
+        <div class="hours">
             <div class="title">Hours</div>
             <div class="schedule">
                 {#each getOpenRanges(hours) as days}
@@ -300,18 +300,18 @@
                 {/each}
             </div>
         </div>
+
         <div class="slideshow">
             {#if selected}
                 <img src={imageA} alt="" class="image" in:fade={{duration: fadeInTime}} out:fade={{duration: fadeOutTime}} on:introend={delayedNext} on:outroend={setNext}/>
             {/if}
         </div>
     </div>
+    
     <div class="footer">
-        <div class="logo">
-            <img src="/logo.svg" alt="UMASs Logo" height="100%"/>
-            <div class="makerspace">
-                UMass Makerspace
-            </div>
+        <div class="logos">
+            <img src="/logo.svg" class="gear" alt="Makerspace Logo"/>
+            <img src="/makerspace.png" class="logo" alt="UMass Amherst | Makerspace"/>
         </div>
         <div class="now">
             {#if isOpen(hours).open}
@@ -331,12 +331,19 @@
         src: url(/fonts/InclusiveSans-Regular.ttf);
     }
 
-    .bg {
-        position: fixed;
+    .title {
+        font-family: InclusiveSans;
+        font-size: 10vmin;
+        color: white;
+    }
+
+    .page {
+        position: absolute;
         top: 0;
         left: 0;
-        width: 100vw;
-        height: 100vh;
+        
+        width: 100dvw;
+        height: 100dvh;
         background-color: #111213;
         font-family: InclusiveSans;
 
@@ -348,14 +355,19 @@
         box-sizing: border-box;
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: stretch;
         flex: 1;
-        height: 85vmin;
+        height: 85dvh;
+        padding: 2em;
+        gap: 10em;
+        padding: 3em 5em;
     }
     
     .footer {
-        color: black;
-        min-height: 15vmin;
+        color: #111213;
+        font-family: InclusiveSans;
+
+        height: 15dvh;
         background-color: #f1f3f9;
         padding: 0 10vmin;
         display: flex;
@@ -368,16 +380,23 @@
         align-items: center;
     }
 
-    .status {
-        margin: 20vmin;
+    .logos {
         display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        gap: 5vmin;
-        color: white;
+        flex-direction: row;
+        justify-content: left;
+        gap: 1em;
+    }
+
+    .gear {
+        object-fit: contain;
+        height: 100%;
+    }
+
+    .logo {
+        object-fit: contain;
+        height: 100%;
+        width: 100%;
         flex: 1;
-        min-width: 40vmin;
     }
 
     .now {
@@ -385,11 +404,11 @@
         flex-direction: row;
         justify-content: center;
         align-items: center;
-        gap: 4vmin;
+        gap: 1em;
     }
 
     .nowText {
-        font-size: 10vmin;
+        font-size: 4em;
     }
 
     .open {
@@ -399,13 +418,20 @@
     .closed {
         color: #dc3545;
     }
-    
-    .title {
-        font-size: 10vmin;
-    }
 
     .subtitle {
-        font-size: 3vmin;
+        font-size: 1.5em;
+    }
+
+    .hours {
+        color: #f1f3f9;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 3em;
+        
+        min-width: 40vmin;
     }
 
     .schedule {
@@ -425,7 +451,7 @@
     }
 
     .day {
-        font-size: 3vmin;
+        font-size: 2em;
     }
 
     .times {
@@ -436,31 +462,16 @@
         gap: 0.5vmin;
     }
 
-    .time {
-        font-size: 2vmin;
-    }
-
     .slideshow {
-        padding: 10vmin;
-        width: 100%;
-        height: 100%;
-        position: relative;
-        flex: 3;
-        box-sizing: border-box;
-
+        flex: 1;
         display: flex;
-        justify-content: center;
-        align-items: center;
+        justify-content: stretch;
+        align-items: stretch;
     }
 
     .image {
-        width: 100%;
         height: 100%;
+        width: 100%;
         object-fit: contain;
-        flex: 1;
-    }
-
-    .makerspace {
-        font-size: 7vmin;
     }
 </style>
