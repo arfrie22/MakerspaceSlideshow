@@ -333,7 +333,7 @@
 
     .title {
         font-family: InclusiveSans;
-        font-size: 10vmin;
+        font-size: 10vh;
         color: white;
     }
 
@@ -358,9 +358,8 @@
         align-items: stretch;
         flex: 1;
         height: 85dvh;
-        padding: 2em;
-        gap: 10em;
-        padding: 3em 5em;
+        gap: 20vh;
+        padding: 5vh 5vw;
     }
     
     .footer {
@@ -384,7 +383,7 @@
         display: flex;
         flex-direction: row;
         justify-content: left;
-        gap: 1em;
+        gap: 1vw;
     }
 
     .gear {
@@ -404,11 +403,11 @@
         flex-direction: row;
         justify-content: center;
         align-items: center;
-        gap: 1em;
+        gap: 2vw;
     }
 
     .nowText {
-        font-size: 4em;
+        font-size: 8vh;
     }
 
     .open {
@@ -420,7 +419,7 @@
     }
 
     .subtitle {
-        font-size: 1.5em;
+        font-size: 4vh;
     }
 
     .hours {
@@ -429,7 +428,7 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        gap: 3em;
+        gap: 6vh;
         
         min-width: 40vmin;
     }
@@ -439,7 +438,7 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        gap: 3vmin;
+        gap: 3vh;
     }
 
     .range {
@@ -451,7 +450,7 @@
     }
 
     .day {
-        font-size: 2em;
+        font-size: 4vh;
     }
 
     .times {
@@ -459,7 +458,7 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        gap: 0.5vmin;
+        gap: 0.75vh;
     }
 
     .slideshow {
