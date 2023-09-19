@@ -1,4 +1,4 @@
-import { GOOGLE_KEY_FILE, GOOGLE_CALENDAR_ID } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { google } from 'googleapis';
 import type { RequestHandler } from './$types';
 import dayjs from 'dayjs';
@@ -13,14 +13,14 @@ dayjs.extend(isBetween);
 
 export const GET: RequestHandler = async () => {
     const auth = new google.auth.GoogleAuth({
-        keyFile: GOOGLE_KEY_FILE,
+        keyFile: env.GOOGLE_KEY_FILE,
         scopes: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/calendar.readonly'],
     });
 
     const calendar = google.calendar({version: 'v3', auth});
     const start = dayjs().startOf('day');
     const res = await calendar.events.list({
-        calendarId: GOOGLE_CALENDAR_ID,
+        calendarId: env.GOOGLE_CALENDAR_ID,
         timeMin: start.toISOString(),
         timeMax: start.add(6, 'day').endOf('day').toISOString(),
         singleEvents: true,

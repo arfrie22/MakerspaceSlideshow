@@ -1,4 +1,4 @@
-import { PICSUR_APIKEY, PICSUR_ENDPOINT } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
 interface GetImagesResults {
@@ -25,13 +25,12 @@ export const GET: RequestHandler = async () => {
 	let images: string[] = [];
 
 	while (!done) {
-		const response = await fetch(`${PICSUR_ENDPOINT}/api/image/list`,
+		const response = await fetch(`${env.PICSUR_ENDPOINT}/api/image/list`,
 			{
 				method: 'POST',
-				// no cors
 				mode: 'cors',
 				headers: {
-					"Authorization": `Api-Key ${PICSUR_APIKEY}`,
+					"Authorization": `Api-Key ${env.PICSUR_APIKEY}`,
 					"Content-Type": "application/json"
 				},
 
@@ -44,7 +43,7 @@ export const GET: RequestHandler = async () => {
 
 		const result = await response.json() as GetImagesResults;
 		console.log(result);
-		images = images.concat(result.data.results.map(r => `${PICSUR_ENDPOINT}/i/${r.id}.jpg`));
+		images = images.concat(result.data.results.map(r => `${env.PICSUR_ENDPOINT}/i/${r.id}.jpg`));
 
 		done = ++page >= result.data.pages;
 	}
