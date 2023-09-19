@@ -6,6 +6,7 @@
     import utc from 'dayjs/plugin/utc';
     import timezone from 'dayjs/plugin/timezone';
     import isBetween from 'dayjs/plugin/isBetween'
+    import { env } from '$env/dynamic/public';
 
     dayjs.extend(utc);
     dayjs.extend(timezone);
@@ -17,6 +18,7 @@
     const minimumLoop = Number.parseFloat($page.url.searchParams.get('loop') || '') || 10;
     const refreshEvery = Number.parseFloat($page.url.searchParams.get('refresh') || '') || 30;
     const calendarUpdate = Number.parseFloat($page.url.searchParams.get('calendar') || '') || 300000;
+    const reverseContent = ($page.url.searchParams.get('reverse') || env.PUBLIC_REVERSE_CONTENT || '') === 'true';
 
     
 
@@ -284,7 +286,7 @@
 </script>
 
 <div class="page">
-    <div class="content">
+    <div class="content" class:reverse={reverseContent}>
         <div class="hours">
             <div class="title">Hours</div>
             <div class="schedule">
@@ -354,12 +356,17 @@
     .content {
         box-sizing: border-box;
         display: flex;
+        flex-direction: row;
         justify-content: center;
         align-items: stretch;
         flex: 1;
         height: 85dvh;
         gap: 20vh;
         padding: 5vh 5vw;
+    }
+
+    .content.reverse {
+        flex-direction: row-reverse;
     }
     
     .footer {
