@@ -7,6 +7,8 @@
     import timezone from 'dayjs/plugin/timezone';
     import isBetween from 'dayjs/plugin/isBetween'
     import { env } from '$env/dynamic/public';
+	import type { DaySchedule, DayScheduleAPI, RoomStatus } from '$lib/types';
+	import { getRoomStatus, getScheduleRanges } from '$lib/calendar';
 
     dayjs.extend(utc);
     dayjs.extend(timezone);
@@ -28,11 +30,6 @@
         return data.images;
     }
 
-    interface DateInfo {
-        ranges: DateRange[];
-        day: dayjs.Dayjs;
-    }
-
     let images: string[] = [];
     let imagesShown = 0;
     let imageLoopDelayMap = new Map<string, number>();
@@ -41,7 +38,8 @@
     let nextImageURL = '';
     let showImage = false;
 
-    let hours: DateInfo[] = [];
+    let schedule: DaySchedule[] = [];
+    let roomStatus: RoomStatus = {open: false, until: ''};
 
     async function queueNextImage() {
         if (imagesShown >= refreshEvery) {
@@ -83,7 +81,23 @@
     }
 
     async function updateHours() {
-        hours = await getOpenHours();
+        const res = await fetch('/api/calendar');
+        const data = await res.json() as DayScheduleAPI[];
+
+        schedule = data.map(e => {
+            return {
+                day: dayjs(e.day),
+                ranges: e.ranges.map(r => {
+                    return {
+                        start: dayjs(r.start),
+                        end: dayjs(r.end)
+                    }
+                })
+            }
+        });
+
+        roomStatus = getRoomStatus(schedule);
+
         window.setTimeout(updateHours, calendarUpdate);
     }
 
@@ -97,193 +111,6 @@
         updateHours();
     }
 
-    interface CalendarEvent {
-        summary: string;
-        start: CalendarTime;
-        end: CalendarTime;
-    }
-
-    interface CalendarTime {
-        date?: string;
-        dateTime?: string;
-        timeZone?: string;
-    }
-
-    interface DateRange {
-        start: dayjs.Dayjs;
-        end: dayjs.Dayjs;
-    }
-
-    function parseCalendarTime(time: CalendarTime | undefined): dayjs.Dayjs {
-        if (!time) {
-            return dayjs();
-        }
-
-        const t = time as CalendarTime;
-        if (t.dateTime) {
-            const d = dayjs(t.dateTime);
-            if (t.timeZone) {
-                return d.tz(t.timeZone, true);
-            }
-        }
-
-        if (t.date) {
-            return dayjs(t.date);
-        }
-
-        return dayjs();
-    }
-
-    async function getOpenHours(): Promise<DateInfo[]> {
-        const res = await fetch('/api/calendar');
-        const data = await res.json() as CalendarEvent[];
-
-        const now = dayjs();
-        const startTime = now.startOf('day');
-        const endTime = now.add(6, 'day').endOf('day');
-        
-        const ranges = Array<DateRange[]>(7);
-        for (let i = 0; i < 7; i++) {
-            ranges[i] = [];
-        }
-        
-        return data.filter(e => {
-            return e.summary.toLowerCase().includes('open');
-        }).map(e => {
-            let start = parseCalendarTime(e.start);
-            let end = parseCalendarTime(e.end);
-
-            if (start.isBefore(startTime)) {
-                start = startTime;
-            }
-
-            if (end.isAfter(endTime)) {
-                end = endTime;
-            }
-
-            return {
-                start: parseCalendarTime(e.start),
-                end: end
-            } as DateRange;
-        }).flatMap(e => {
-            let start = e.start;
-            const results = [];
-
-            while (start.day() !== e.end.day()) {
-                results.push({
-                    start: start,
-                    end: start.endOf('day')
-                } as DateRange);
-                start = start.add(1, 'day').startOf('day');
-            }
-
-            results.push({
-                start: start,
-                end: e.end
-            } as DateRange);
-
-            return results;
-        }).reduce((acc, e) => {
-            const offset = (e.start.day() - now.day() + 7) % 7;
-            acc[offset].push(e);
-
-            return acc;
-        }, ranges).map(e => {
-            e = e.sort((a, b) => {
-                return a.start.isBefore(b.start) ? -1 : 1;
-            });
-
-            if (e.length <= 1) {
-                return e;
-            }
-
-            let index = 0;
-
-            while (index < e.length) {
-                for (let i = index + 1; i < e.length; i++) {
-                    if (e[index].end.isAfter(e[i].start)) {
-                        if (e[index].end.isBefore(e[i].end)) {
-                            e[index].end = e[i].end;
-                        }
-
-                        e.splice(i, 1);
-                        i--;
-                    }
-                }
-
-                index++;
-            }
-
-            return e;
-        }).map((e, i) => {
-            return {
-                ranges: e,
-                day: dayjs().startOf('day').add(i, 'day')
-            } as DateInfo;
-        });
-    }
-
-    interface OpenResult {
-        open: boolean;
-        until?: dayjs.Dayjs;
-    }
-
-    function isOpen(info: DateInfo[]): OpenResult {
-        const now = dayjs();
-
-        for (let i = 0; i < info.length; i++) {
-            for (let j = 0; j < info[i].ranges.length; j++) {
-                const range = info[i].ranges[j];
-                if (now.isBetween(range.start, range.end)) {
-                    return {
-                        open: true,
-                        until: range.end
-                    };
-                } else if (now.isBefore(range.start)) {
-                    return {
-                        open: false,
-                        until: range.start
-                    };
-                }
-            }
-        }
-
-        return {
-            open: false
-        };
-    }
-
-    function openTextSubtitle(result: OpenResult) {
-        if (result.until) {
-            if (result.until.isSame(dayjs(), 'day')) {
-                return `until ${result.until.format('h:mm A')}`;
-            } else if (result.until.isSame(dayjs().add(1, 'day'), 'day')) {
-                return `until ${result.until.format('h:mm A')} tomorrow`;
-            } else {
-                return `until ${result.until.format('dddd h:mm A')}`;
-            }
-        } else {
-            return null;
-        }
-    }
-
-    interface OpenRangeResult {
-        day: dayjs.Dayjs;
-        ranges: string[];
-    }
-
-    function getOpenRanges(ranges: DateInfo[]): OpenRangeResult[] {
-        return ranges.map(e => {
-            if (e.ranges.length === 0) {
-                return {day: e.day, ranges: ['Closed']} as OpenRangeResult;
-            }
-
-            return {day: e.day, ranges: e.ranges.map(e => {
-                return `${e.start.format('h:mm A')} - ${e.end.format('h:mm A')}`;
-            })} as OpenRangeResult;
-        });
-    }
-
     load();
 </script>
 
@@ -292,7 +119,7 @@
         <div class="hours">
             <div class="title">Hours</div>
             <div class="schedule">
-                {#each getOpenRanges(hours) as days}
+                {#each getScheduleRanges(schedule) as days}
                     <div class="range">
                         <div class="day">{days.day.format('dddd')}</div>
                         <div class="times">
@@ -319,12 +146,12 @@
         </div>
         <div class="nowWrapper">
             <div class="now">
-                {#if isOpen(hours).open}
+                {#if roomStatus.open}
                     <div class="open nowText">OPEN</div>
-                    <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
+                    <div class="subtitle">{roomStatus.until}</div>
                 {:else}
                     <div class="closed nowText">CLOSED</div>
-                    <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
+                    <div class="subtitle">{roomStatus.until}</div>
                 {/if}
             </div>
         </div>
