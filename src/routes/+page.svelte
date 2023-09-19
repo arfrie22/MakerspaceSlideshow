@@ -34,26 +34,28 @@
     }
 
     let images: string[] = [];
-    let imageCount = 0;
-    let imagesDelay = new Map<string, number>();
-    let imageA = '';
-    let imageB = '';
-    let selected = false;
+    let imagesShown = 0;
+    let imageLoopDelayMap = new Map<string, number>();
+
+    let currentImageURL = '';
+    let nextImageURL = '';
+    let showImage = false;
+
     let hours: DateInfo[] = [];
 
-    async function nextImage() {
-        if (imageCount >= refreshEvery) {
+    async function queueNextImage() {
+        if (imagesShown >= refreshEvery) {
             await load();
             return;
         }
 
-        imageCount = imageCount++;
+        imagesShown++;
         const validImages: string[] = [];
-        imagesDelay.forEach((v, k) => {
+        imageLoopDelayMap.forEach((v, k) => {
             if (v <= 0) {
                 validImages.push(k);
             } else {
-                imagesDelay.set(k, v - 1);
+                imageLoopDelayMap.set(k, v - 1);
             }
         });
         
@@ -62,20 +64,22 @@
         try {
             let res = await fetch(image);
             let blob = await res.blob();
-            imagesDelay.set(image, minimumLoop);
+            imageLoopDelayMap.set(image, minimumLoop);
 
-            imageB = URL.createObjectURL(blob);
-            selected = false;
+            nextImageURL = URL.createObjectURL(blob);
+            showImage = false;
         } catch (e) {
             console.error(e);
-            await nextImage();
+            await queueNextImage();
         }
     }
 
-    function setNext() {
-        URL.revokeObjectURL(imageA);
-        imageA = imageB;
-        selected = true;
+    const delayedQueueNextImage = () => window.setTimeout(queueNextImage, holdTime);
+
+    function fadeInNextImage() {
+        URL.revokeObjectURL(currentImageURL);
+        currentImageURL = nextImageURL;
+        showImage = true;
     }
 
     async function updateHours() {
@@ -85,11 +89,11 @@
 
     async function load() {
         images = await getImages();
-        imageCount = 0;
-        imagesDelay = new Map<string, number>();
-        images.forEach(i => imagesDelay.set(i, 0));
-        await nextImage();
-        setNext();
+        imagesShown = 0;
+        imageLoopDelayMap = new Map<string, number>();
+        images.forEach(i => imageLoopDelayMap.set(i, 0));
+        await queueNextImage();
+        fadeInNextImage();
         updateHours();
     }
 
@@ -280,8 +284,6 @@
         });
     }
 
-    const delayedNext = () => window.setTimeout(nextImage, holdTime);
-
     load();
 </script>
 
@@ -304,8 +306,8 @@
         </div>
 
         <div class="slideshow">
-            {#if selected}
-                <img src={imageA} alt="" class="image" in:fade={{duration: fadeInTime}} out:fade={{duration: fadeOutTime}} on:introend={delayedNext} on:outroend={setNext}/>
+            {#if imagesShown}
+                <img src={currentImageURL} alt="" class="image" in:fade={{duration: fadeInTime}} out:fade={{duration: fadeOutTime}} on:introend={delayedQueueNextImage} on:outroend={fadeInNextImage}/>
             {/if}
         </div>
     </div>
