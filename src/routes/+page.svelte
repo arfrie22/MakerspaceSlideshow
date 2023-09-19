@@ -4,8 +4,8 @@
     import utc from 'dayjs/plugin/utc';
     import timezone from 'dayjs/plugin/timezone';
     import isBetween from 'dayjs/plugin/isBetween'
-	import type { DaySchedule, DayScheduleAPI, RoomStatus } from '$lib/types';
-	import { getRoomStatus, getScheduleRanges } from '$lib/calendar';
+	import type { CalendarEvent, DaySchedule, RoomStatus } from '$lib/types';
+	import { getDaySchedule, getRoomStatus, getScheduleRanges } from '$lib/calendar';
 	import { onMount } from 'svelte';
     import { page } from '$app/stores';
 	
@@ -71,19 +71,9 @@
 
     async function updateHours() {
         const res = await fetch('/api/calendar');
-        const data = await res.json() as DayScheduleAPI[];
+        const data = await res.json() as CalendarEvent[];
 
-        schedule = data.map(e => {
-            return {
-                day: dayjs(e.day),
-                ranges: e.ranges.map(r => {
-                    return {
-                        start: dayjs(r.start),
-                        end: dayjs(r.end)
-                    }
-                })
-            }
-        });
+        schedule = getDaySchedule(data);
 
         roomStatus = getRoomStatus(schedule);
 

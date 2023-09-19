@@ -20,13 +20,14 @@ export interface DateRange {
     end: dayjs.Dayjs;
 }
 
-
-export interface DayScheduleAPI {
-    ranges: DateRangeAPI[];
-    day: string;
+export interface CalendarEvent {
+    summary: string;
+    start: CalendarTime;
+    end: CalendarTime;
 }
 
-export interface DateRangeAPI {
-    start: string;
-    end: string;
+export interface CalendarTime {
+    date?: string;
+    dateTime?: string;
+    timeZone?: string;
 }
