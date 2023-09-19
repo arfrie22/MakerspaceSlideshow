@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isBetween from 'dayjs/plugin/isBetween'
-import type { DateRange, DateRangeAPI, DaySchedule, DayScheduleAPI } from '$lib/types';
+import type { DateRange, DateRangeAPI, DayScheduleAPI } from '$lib/types';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
