@@ -152,12 +152,12 @@
 
 <style lang="scss">
     @font-face {
-        font-family: InclusiveSans;
-        src: url(/fonts/InclusiveSans-Regular.ttf);
+        font-family: OpenSans;
+        src: url(/fonts/OpenSans-Regular.ttf);
     }
 
     .title {
-        font-family: InclusiveSans;
+        font-family: OpenSans;
         font-size: 10vh;
         color: white;
     }
@@ -170,7 +170,7 @@
         width: 100dvw;
         height: 100dvh;
         background-color: #111213;
-        font-family: InclusiveSans;
+        font-family: OpenSans;
 
         display: flex;
         flex-direction: column;
@@ -194,7 +194,7 @@
     
     .footer {
         color: #111213;
-        font-family: InclusiveSans;
+        font-family: OpenSans;
 
         height: 15dvh;
         background-color: #f1f3f9;
