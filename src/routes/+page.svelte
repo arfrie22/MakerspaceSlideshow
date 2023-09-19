@@ -315,14 +315,16 @@
             <img src="/logo.svg" class="gear" alt="Makerspace Logo"/>
             <img src="/makerspace.png" class="logo" alt="UMass Amherst | Makerspace"/>
         </div>
-        <div class="now">
-            {#if isOpen(hours).open}
-                <div class="open nowText">Open</div>
-                <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
-            {:else}
-                <div class="closed nowText">Closed</div>
-                <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
-            {/if}
+        <div class="nowWrapper">
+            <div class="now">
+                {#if isOpen(hours).open}
+                    <div class="open nowText">Open</div>
+                    <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
+                {:else}
+                    <div class="closed nowText">Closed</div>
+                    <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
+                {/if}
+            </div>
         </div>
     </div>
 </div>
@@ -435,36 +437,46 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        gap: 6vh;
+        gap: 1vh;
         
         min-width: 40vmin;
+    }
+
+
+    .schedule:before {
+        content: "";
+        border: 1px solid #f1f3f9;
+        align-self: stretch;
     }
 
     .schedule {
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: stretch;
         align-items: center;
-        gap: 3vh;
+        gap: 2vh;
     }
 
     .range {
         display: flex;
         flex-direction: row;
-        justify-content: center;
+        justify-content: stretch;
         align-items: top;
-        gap: 1vmin;
+        width: 100%;
+        gap: 2vw;
     }
 
     .day {
         font-size: 4vh;
+        justify-self: left;
     }
 
     .times {
         display: flex;
         flex-direction: column;
         justify-content: center;
-        align-items: center;
+        align-items: end;
+        flex: 1;
         gap: 0.75vh;
     }
 
