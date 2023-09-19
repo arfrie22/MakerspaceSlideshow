@@ -318,10 +318,10 @@
         <div class="nowWrapper">
             <div class="now">
                 {#if isOpen(hours).open}
-                    <div class="open nowText">Open</div>
+                    <div class="open nowText">OPEN</div>
                     <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
                 {:else}
-                    <div class="closed nowText">Closed</div>
+                    <div class="closed nowText">CLOSED</div>
                     <div class="subtitle">{openTextSubtitle(isOpen(hours))}</div>
                 {/if}
             </div>
@@ -478,6 +478,7 @@
         align-items: end;
         flex: 1;
         gap: 0.75vh;
+        font-size: 2vh;
     }
 
     .slideshow {
