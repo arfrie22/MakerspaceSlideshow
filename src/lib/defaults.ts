@@ -1,3 +1,0 @@
-export const DEFAULT_FADE_IN_DURATION = 700;
-export const DEFAULT_FADE_OUT_DURATION = 500;
-export const DEFAULT_HOLD_DURATION = 10000;

@@ -1,28 +1,17 @@
 <script lang="ts">
     import { fade } from 'svelte/transition';
-    import { page } from '$app/stores'
-    import { DEFAULT_FADE_IN_DURATION, DEFAULT_FADE_OUT_DURATION, DEFAULT_HOLD_DURATION } from '$lib/defaults'
     import dayjs from 'dayjs';
     import utc from 'dayjs/plugin/utc';
     import timezone from 'dayjs/plugin/timezone';
     import isBetween from 'dayjs/plugin/isBetween'
-    import { env } from '$env/dynamic/public';
 	import type { DaySchedule, DayScheduleAPI, RoomStatus } from '$lib/types';
 	import { getRoomStatus, getScheduleRanges } from '$lib/calendar';
-
+	import { onMount } from 'svelte';
+    import { page } from '$app/stores';
+	
     dayjs.extend(utc);
     dayjs.extend(timezone);
     dayjs.extend(isBetween)
-
-    const fadeInTime = Number.parseFloat($page.url.searchParams.get('fadeIn') || '') || DEFAULT_FADE_IN_DURATION;
-    const fadeOutTime = Number.parseFloat($page.url.searchParams.get('fadeOut') || '') || DEFAULT_FADE_OUT_DURATION;
-    const holdTime = Number.parseFloat($page.url.searchParams.get('hold') || '') || DEFAULT_HOLD_DURATION;
-    const minimumLoop = Number.parseFloat($page.url.searchParams.get('loop') || '') || 10;
-    const refreshEvery = Number.parseFloat($page.url.searchParams.get('refresh') || '') || 30;
-    const calendarUpdate = Number.parseFloat($page.url.searchParams.get('calendar') || '') || 300000;
-    const reverseContent = ($page.url.searchParams.get('reverse') || env.PUBLIC_REVERSE_CONTENT || '') === 'true';
-
-    
 
     async function getImages(): Promise<string[]> {
         const res = await fetch('/api/images');
@@ -42,7 +31,7 @@
     let roomStatus: RoomStatus = {open: false, until: ''};
 
     async function queueNextImage() {
-        if (imagesShown >= refreshEvery) {
+        if (imagesShown >= $page.data.imageReloadEvery) {
             await load();
             return;
         }
@@ -62,7 +51,7 @@
         try {
             let res = await fetch(image);
             let blob = await res.blob();
-            imageLoopDelayMap.set(image, minimumLoop);
+            imageLoopDelayMap.set(image, $page.data.imageLoopDelay);
 
             nextImageURL = URL.createObjectURL(blob);
             showImage = false;
@@ -72,7 +61,7 @@
         }
     }
 
-    const delayedQueueNextImage = () => window.setTimeout(queueNextImage, holdTime);
+    const delayedQueueNextImage = () => window.setTimeout(queueNextImage, $page.data.imageHoldTime);
 
     function fadeInNextImage() {
         URL.revokeObjectURL(currentImageURL);
@@ -98,7 +87,7 @@
 
         roomStatus = getRoomStatus(schedule);
 
-        window.setTimeout(updateHours, calendarUpdate);
+        window.setTimeout(updateHours, $page.data.calendarUpdateTime);
     }
 
     async function load() {
@@ -111,11 +100,14 @@
         updateHours();
     }
 
-    load();
+
+    onMount(() => {
+        load();
+    });
 </script>
 
 <div class="page">
-    <div class="content" class:reverse={reverseContent}>
+    <div class="content" class:reverse={$page.data.reverseContent}>
         <div class="hours">
             <div class="title">Hours</div>
             <div class="schedule">
@@ -133,8 +125,8 @@
         </div>
 
         <div class="slideshow">
-            {#if imagesShown}
-                <img src={currentImageURL} alt="" class="image" in:fade={{duration: fadeInTime}} out:fade={{duration: fadeOutTime}} on:introend={delayedQueueNextImage} on:outroend={fadeInNextImage}/>
+            {#if showImage}
+                <img src={currentImageURL} alt="" class="image" in:fade={{duration: $page.data.imageFadeInTime}} out:fade={{duration: $page.data.imageFadeOutTime}} on:introend={delayedQueueNextImage} on:outroend={fadeInNextImage}/>
             {/if}
         </div>
     </div>
