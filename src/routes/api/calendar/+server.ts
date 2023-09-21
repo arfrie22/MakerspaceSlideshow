@@ -36,30 +36,37 @@ export const GET: RequestHandler = async () => {
     }
 
     console.log('Fetching calendar events...');
-    fetchInProcess = true;
 
-    const auth = new google.auth.GoogleAuth({
-        keyFile: env.GOOGLE_KEY_FILE,
-        scopes: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/calendar.readonly'],
-    });
+    try {
+        fetchInProcess = true;
 
-    const calendar = google.calendar({version: 'v3', auth});
-    const res = await calendar.events.list({
-        calendarId: env.GOOGLE_CALENDAR_ID,
-        timeMin: dayjs().add(-1, 'day').toISOString(),
-        timeMax: dayjs().add(7, 'day').toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-    });
+        const auth = new google.auth.GoogleAuth({
+            keyFile: env.GOOGLE_KEY_FILE,
+            scopes: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/calendar.readonly'],
+        });
 
-    const data = res.data.items as CalendarEvent[];
-    cached = data;
-    lastCached = dayjs().valueOf();
-    fetchInProcess = false;
+        const calendar = google.calendar({version: 'v3', auth});
+        const res = await calendar.events.list({
+            calendarId: env.GOOGLE_CALENDAR_ID,
+            timeMin: dayjs().add(-1, 'day').toISOString(),
+            timeMax: dayjs().add(7, 'day').toISOString(),
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
 
-    return new Response(JSON.stringify(data), {
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
-    });
+        const data = res.data.items as CalendarEvent[];
+        cached = data;
+        lastCached = dayjs().valueOf();
+        fetchInProcess = false;
+
+        return new Response(JSON.stringify(data), {
+            headers: {
+                'content-type': 'application/json;charset=UTF-8',
+            },
+        });
+    } catch (e) {
+        fetchInProcess = false;
+        console.error(e);
+        throw e;
+    }
 };
