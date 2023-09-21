@@ -70,6 +70,7 @@
     }
 
     async function updateHours() {
+        try {
         const res = await fetch('/api/calendar');
         const data = await res.json() as CalendarEvent[];
 
@@ -78,6 +79,10 @@
         roomStatus = getRoomStatus(schedule);
 
         window.setTimeout(updateHours, $page.data.calendarUpdateTime);
+        } catch (e) {
+            console.error(e);
+            window.setTimeout(updateHours, 1000);
+        }
     }
 
     async function load() {
