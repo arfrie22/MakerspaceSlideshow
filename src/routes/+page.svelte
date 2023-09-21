@@ -81,7 +81,7 @@
         window.setTimeout(updateHours, $page.data.calendarUpdateTime);
         } catch (e) {
             console.error(e);
-            window.setTimeout(updateHours, 1000);
+            window.setTimeout(updateHours, $page.data.calendarRetryTime);
         }
     }
 

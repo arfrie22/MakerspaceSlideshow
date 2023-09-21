@@ -21,6 +21,9 @@ export const load: PageLoad = ({ url }) => {
     const calendarUpdateTime = Number.parseFloat(url.searchParams.get('calendar') || env.PUBLIC_DEFAULT_CALENDAR_UPDATE_TIME || '');
     if (!Number.isInteger(calendarUpdateTime)) throw new Error('Invalid calendar update time');
 
+    const calendarRetryTime = Number.parseFloat(env.PUBLIC_CALENDAR_RETRY_TIME || '');
+    if (!Number.isInteger(calendarRetryTime)) throw new Error('Invalid calendar retry time');
+
     const reverseContent = (url.searchParams.get('reverse') || env.PUBLIC_DEFAULT_REVERSE_CONTENT || '') === 'true';
 
 	return {
@@ -30,6 +33,7 @@ export const load: PageLoad = ({ url }) => {
         imageLoopDelay,
         imageReloadEvery,
         calendarUpdateTime,
+        calendarRetryTime,
         reverseContent
 	};
 };
