@@ -152,8 +152,8 @@ export function getDaySchedule(data: CalendarEvent[]): DaySchedule[] {
 
         while (index < e.length) {
             for (let i = index + 1; i < e.length; i++) {
-                if (e[index].end.isAfter(e[i].start)) {
-                    if (e[index].end.isBefore(e[i].end)) {
+                if (e[index].end.isAfter(e[i].start) || e[index].end.isSame(e[i].start)) {
+                    if (e[index].end.isBefore(e[i].end) || e[index].end.isSame(e[i].end)) {
                         e[index].end = e[i].end;
                     }
 
