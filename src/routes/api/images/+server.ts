@@ -42,8 +42,7 @@ export const GET: RequestHandler = async () => {
 		);
 
 		const result = await response.json() as GetImagesResults;
-		console.log(result);
-		images = images.concat(result.data.results.map(r => `${env.PICSUR_ENDPOINT}/i/${r.id}.jpg`));
+		images = images.concat(result.data.results.map(r => `/api/image/${r.id}`));
 
 		done = ++page >= result.data.pages;
 	}

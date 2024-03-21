@@ -10,7 +10,7 @@ let fetchInProcess = false;
 
 export const GET: RequestHandler = async ({getClientAddress}) => {
     console.log(`GET /api/calendar from ${getClientAddress()}`);
-    const cacheTime = Number.parseInt(env.GOOGLE_CALENDAR_CACHE_TIME);
+    const cacheTime = Number.parseInt(env.GOOGLE_CALENDAR_CACHE_TIME || '');
     if (!Number.isInteger(cacheTime)) throw new Error('Invalid cache time');
 
     if (fetchInProcess) {
