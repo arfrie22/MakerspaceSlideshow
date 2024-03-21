@@ -9,7 +9,7 @@ export const load: PageLoad = ({ url }) => {
     const imageFadeOutTime = Number.parseFloat(url.searchParams.get('fadeOut') || env.PUBLIC_DEFAULT_IMAGE_FADE_OUT_DURATION || '');
     if (!Number.isInteger(imageFadeOutTime)) throw new Error('Invalid fade out time');
 
-    const imageHoldTime = Number.parseFloat(url.searchParams.get('hold') || env.PUBLIC_DEFAULT_IMAEG_HOLD_DURATION || '');
+    const imageHoldTime = Number.parseFloat(url.searchParams.get('hold') || env.PUBLIC_DEFAULT_IMAGE_HOLD_DURATION || '');
     if (!Number.isInteger(imageHoldTime)) throw new Error('Invalid hold time');
 
     const imageLoopDelay = Number.parseFloat(url.searchParams.get('loop') || env.PUBLIC_DEFAULT_IMAGE_LOOP_DELAY || '');
@@ -22,6 +22,7 @@ export const load: PageLoad = ({ url }) => {
     if (!Number.isInteger(calendarUpdateTime)) throw new Error('Invalid calendar update time');
 
     const calendarRetryTime = Number.parseFloat(env.PUBLIC_CALENDAR_RETRY_TIME || '');
+    console.log(env.PUBLIC_CALENDAR_RETRY_TIME);
     if (!Number.isInteger(calendarRetryTime)) throw new Error('Invalid calendar retry time');
 
     const reverseContent = (url.searchParams.get('reverse') || env.PUBLIC_DEFAULT_REVERSE_CONTENT || '') === 'true';
