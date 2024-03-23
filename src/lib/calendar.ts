@@ -1,6 +1,7 @@
 import type { ICS } from '@filecage/ical';
 import type { DateTime } from '@filecage/ical/ValueTypes';
 import { parseString } from '@filecage/ical/parser';
+import { addDays, isWithinInterval, subDays } from 'date-fns';
 import RRULE from 'rrule';
 import tcal from 'tcal';
 
@@ -15,6 +16,9 @@ export type EventJSON = {
 	start: string;
 	end: string;
 	allDay: boolean;
+	uid: string;
+	sequence: number;
+	recurrenceId?: string;
 };
 
 export function getOffsetValue(offset: string): number {
@@ -86,7 +90,7 @@ export class Timezone {
 
 		transitions.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-		return new Date(date.getTime() - transitions[0].offset - date.getTimezoneOffset() * 60 * 1000);
+		return new Date(date.getTime() - transitions[0].offset);
 	}
 }
 
@@ -125,8 +129,15 @@ export class EventInstance {
 	public start: DateTime;
 	public end: EventEndType;
 	public allDay: boolean;
+	public uid: string;
+	public sequence: number;
+	public recurrenceId?: DateTime;
 
 	constructor(event: Event, start: Date) {
+		if (event.start.timezoneIdentifier !== undefined) {
+			start = new Date(start.getTime() - event.start.date.getTimezoneOffset() * 60 * 1000);
+		}
+
 		this.title = event.title;
 		this.description = event.description || '';
 		this.start = {
@@ -138,6 +149,9 @@ export class EventInstance {
 
 		this.end = event.end;
 		this.allDay = event.allDay;
+		this.uid = event.uid;
+		this.sequence = event.sequence;
+		this.recurrenceId = event.recurrenceId;
 	}
 
 	public getEndTime(timezoneMap: TimezoneMap): DateTime {
@@ -170,12 +184,18 @@ export class EventInstance {
 	}
 
 	public getJSON(timezoneMap: TimezoneMap): EventJSON {
+		const start = getDateTimeTimestamp(this.start, timezoneMap);
 		return {
 			title: this.title,
 			description: this.description,
-			start: getDateTimeTimestamp(this.start, timezoneMap),
+			start,
 			end: this.getEndTimeTimestamp(timezoneMap),
-			allDay: this.allDay
+			allDay: this.allDay,
+			uid: this.uid,
+			sequence: this.sequence,
+			recurrenceId: this.recurrenceId
+				? getDateTimeTimestamp(this.recurrenceId, timezoneMap)
+				: undefined
 		};
 	}
 }
@@ -186,6 +206,9 @@ export class Event {
 	public start: DateTime;
 	public end: EventEndType;
 	public allDay: boolean;
+	public uid: string;
+	public sequence: number;
+	public recurrenceId?: DateTime;
 
 	public rrules?: RRULE.RRuleSet;
 
@@ -247,7 +270,6 @@ export class Event {
 		}
 
 		if (event.EXDATE) {
-			useRrule = true;
 			event.EXDATE.forEach((exdates) => {
 				exdates.value.forEach((exdate) => {
 					if (exdate) {
@@ -258,16 +280,32 @@ export class Event {
 		}
 
 		this.rrules = useRrule ? rrules : undefined;
+
+		this.uid = event.UID.value;
+		this.sequence = Number.parseInt(event.SEQUENCE?.value || '') || -1;
+		if (event['RECURRENCE-ID']) {
+			const id = event['RECURRENCE-ID'].value;
+			this.recurrenceId = {
+				date: new Date(id.date.getTime() - id.date.getTimezoneOffset() * 60 * 1000),
+				isDateOnly: id.isDateOnly,
+				timezoneIdentifier: id.timezoneIdentifier,
+				isUTC: id.isUTC
+			} as DateTime;
+		}
 	}
 
 	public between(start: Date, end: Date): EventInstance[] {
 		if (!this.rrules) {
-			return [new EventInstance(this, this.start.date)];
+			if (isWithinInterval(this.start.date, { start, end })) {
+				return [new EventInstance(this, this.start.date)];
+			} else {
+				return [];
+			}
 		}
 
 		const instances = this.rrules.between(
-			new Date(start.getTime() - this.end.difference - 24 * 60 * 60 * 1000),
-			new Date(end.getTime() + 24 * 60 * 60 * 1000),
+			subDays(new Date(start.getTime() - this.end.difference), 1),
+			addDays(end.getTime(), 1),
 			true
 		);
 
@@ -292,9 +330,23 @@ export class Calendar {
 	}
 
 	public between(start: Date, end: Date): EventJSON[] {
-		return this.events.flatMap((e) => {
-			return e.between(start, end).map((d) => d.getJSON(this.timezoneMap));
+		const eventMap = new Map<string, EventJSON>();
+		this.events.flatMap((e) => {
+			const events = e.between(start, end).map((d) => d.getJSON(this.timezoneMap));
+
+			events.forEach((event) => {
+				const uid = `${event.uid}${event.recurrenceId || event.start}`;
+				const existing = eventMap.get(uid);
+
+				if (existing && !existing.recurrenceId && event.sequence >= existing.sequence) {
+					eventMap.set(uid, event);
+				} else {
+					eventMap.set(uid, event);
+				}
+			});
 		});
+
+		return Array.from(eventMap.values());
 	}
 }
 

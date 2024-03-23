@@ -5,7 +5,6 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import {
-		isSameDay,
 		addDays,
 		format,
 		startOfDay,
@@ -15,7 +14,8 @@
 		min,
 		endOfDay,
 		isEqual,
-		isWithinInterval
+		isWithinInterval,
+		formatRelative
 	} from 'date-fns';
 
 	async function getImages(): Promise<string[]> {
@@ -72,20 +72,6 @@
 		URL.revokeObjectURL(currentImageURL);
 		currentImageURL = nextImageURL;
 		showImage = true;
-	}
-
-	function getRoomStatusSubTitle(until?: Date): string {
-		if (until) {
-			if (isSameDay(until, new Date())) {
-				return `until ${format(until, 'h:mm a')}`;
-			} else if (isSameDay(until, addDays(new Date(), 1))) {
-				return `until ${format(until, 'h:mm a')} tomorrow`;
-			} else {
-				return `until ${format(until, 'EEEE h:mm a')}`;
-			}
-		} else {
-			return '';
-		}
 	}
 
 	function getDaySchedule(data: EventJSON[]): DaySchedule[] {
@@ -186,20 +172,21 @@
 	}
 
 	export function getRoomStatus(schedule: DaySchedule[]): RoomStatus {
+		console.log(schedule);
 		const now = new Date();
 
 		for (let i = 0; i < schedule.length; i++) {
 			for (let j = 0; j < schedule[i].ranges.length; j++) {
 				const range = schedule[i].ranges[j];
-				if (isWithinInterval(now, { start: range.start, end: range.end })) {
+				if (isWithinInterval(now, range)) {
 					return {
 						open: true,
-						until: getRoomStatusSubTitle(range.end)
+						until: formatRelative(range.end, now)
 					};
 				} else if (isBefore(now, range.start)) {
 					return {
 						open: false,
-						until: getRoomStatusSubTitle(range.start)
+						until: formatRelative(range.start, now)
 					};
 				}
 			}
