@@ -1,17 +1,10 @@
 <script lang="ts">
     import { fade } from 'svelte/transition';
-    import dayjs from 'dayjs';
-    import utc from 'dayjs/plugin/utc';
-    import timezone from 'dayjs/plugin/timezone';
-    import isBetween from 'dayjs/plugin/isBetween'
-	import type { CalendarEvent, DaySchedule, RoomStatus } from '$lib/types';
-	import { getDaySchedule, getRoomStatus, getScheduleRanges } from '$lib/calendar';
+	import type { DateRange, DaySchedule, RoomStatus, ScheduleRanges } from '$lib/types';
+	import type { EventJSON } from '$lib/calendar';
 	import { onMount } from 'svelte';
     import { page } from '$app/stores';
-	
-    dayjs.extend(utc);
-    dayjs.extend(timezone);
-    dayjs.extend(isBetween)
+    import { isSameDay, addDays, format, startOfDay, isAfter, isBefore, max, min, endOfDay, isEqual, isWithinInterval } from 'date-fns';
 
     async function getImages(): Promise<string[]> {
         const res = await fetch('/api/images');
@@ -69,10 +62,155 @@
         showImage = true;
     }
 
+    function getRoomStatusSubTitle(until?: Date): string {
+        if (until) {
+            if (isSameDay(until, new Date())) {
+                return `until ${format(until, 'h:mm a')}`;
+            } else if (isSameDay(until, addDays(new Date(), 1))) {
+                return `until ${format(until, 'h:mm a')} tomorrow`;
+            } else {
+                return `until ${format(until, 'EEEE h:mm a')}`;
+            }
+        } else {
+            return '';
+        }
+    }
+
+    function getDaySchedule(data: EventJSON[]): DaySchedule[] {
+    const now = new Date();
+    const startTime = startOfDay(now);
+    const endTime = addDays(startTime, 7);
+    
+    const ranges = Array<DateRange[]>(7);
+    for (let i = 0; i < 7; i++) {
+        ranges[i] = [];
+    }
+    
+    return data.filter(e => {
+        return e.title.toLowerCase().includes('open');
+    }).map(e => {
+        return {
+            start: max([new Date(e.start), startTime]),
+            end: min([new Date(e.end), endTime])
+        } as DateRange;
+    }).filter(e => {
+        if (isBefore(e.end, startTime)) {
+            return false;
+        }
+
+        if (isAfter(e.start, endTime)) {
+            return false;
+        }
+
+        return true;
+    }).flatMap(e => {
+        let start = e.start;
+        const results = [];
+
+        while (start.getDay() !== e.end.getDay()) {
+            results.push({
+                start: start,
+                end: endOfDay(start)
+            } as DateRange);
+            start = startOfDay(addDays(start, 1));
+        }
+
+        results.push({
+            start: start,
+            end: e.end
+        } as DateRange);
+
+        return results;
+    }).reduce((acc, e) => {
+        const offset = (e.start.getDay() - now.getDay() + 7) % 7;
+        acc[offset].push(e);
+
+        return acc;
+    }, ranges).map(e => {
+        e = e.sort((a, b) => {
+            return isBefore(a.start, b.start) ? -1 : 1;
+        });
+
+        if (e.length <= 1) {
+            return e;
+        }
+
+        let index = 0;
+
+        while (index < e.length) {
+            for (let i = index + 1; i < e.length; i++) {
+                if (isAfter(e[index].end, e[i].start) || isEqual(e[index].end, e[i].start)) {
+                    if (isBefore(e[index].end, e[i].end) || isEqual(e[index].end, e[i].end)) {
+                        e[index].end = e[i].end;
+                    }
+
+                    e.splice(i, 1);
+                    i--;
+                }
+            }
+
+            index++;
+        }
+
+        return e;
+    }).map((e, i) => {
+        return {
+            ranges: e.map(e => {
+                return {
+                    start: e.start,
+                    end: e.end
+                } as DateRange;
+            }),
+            day: addDays(startTime, i)
+        } as DaySchedule;
+    });
+}
+
+export function getRoomStatus(schedule: DaySchedule[]): RoomStatus {
+    const now = new Date();
+
+    for (let i = 0; i < schedule.length; i++) {
+        for (let j = 0; j < schedule[i].ranges.length; j++) {
+            const range = schedule[i].ranges[j];
+            if (isWithinInterval(now, {start: range.start, end: range.end})) {
+                return {
+                    open: true,
+                    until: getRoomStatusSubTitle(range.end)
+                };
+            } else if (isBefore(now, range.start)) {
+                return {
+                    open: false,
+                    until: getRoomStatusSubTitle(range.start)
+                };
+            }
+        }
+    }
+
+    return {
+        open: false,
+        until: ''
+    };
+}
+
+export function getScheduleRanges(schedule: DaySchedule[]): ScheduleRanges[] {
+    return schedule.map(e => {
+        if (e.ranges.length === 0) {
+            return {day: e.day, ranges: ['Closed']} as ScheduleRanges;
+        }
+
+        return {day: e.day, ranges: e.ranges.map(e => {
+            return `${format(e.start, 'h:mm a')} - ${format(e.end, 'h:mm a')}`;
+        })} as ScheduleRanges;
+    });
+}
+
     async function updateHours() {
         try {
-        const res = await fetch('/api/calendar');
-        const data = await res.json() as CalendarEvent[];
+            const now = new Date();
+            const startTime = startOfDay(now);
+            const endTime = addDays(startTime, 7);
+        const res = await fetch('/api/calendar?start=' + startTime.toISOString() + '&end=' + endTime.toISOString());
+        const data = await res.json() as EventJSON[];
 
         schedule = getDaySchedule(data);
 
@@ -108,7 +246,7 @@
             <div class="schedule">
                 {#each getScheduleRanges(schedule) as days}
                     <div class="range">
-                        <div class="day">{days.day.format('dddd')}</div>
+                        <div class="day">{format(days.day, 'EEEE')}</div>
                         <div class="times">
                             {#each days.ranges as time}
                                 <div class="time">{time}</div>

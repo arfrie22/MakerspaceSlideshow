@@ -1,7 +1,6 @@
 import type { PageLoad } from './$types';
 import { env } from '$env/dynamic/public';
 
-export const ssr = false;
 export const load: PageLoad = ({ url }) => {
     const imageFadeInTime = Number.parseFloat(url.searchParams.get('fadeIn') || env.PUBLIC_DEFAULT_IMAGE_FADE_IN_DURATION || '');
     if (!Number.isInteger(imageFadeInTime)) throw new Error('Invalid fade in time');
@@ -35,6 +34,6 @@ export const load: PageLoad = ({ url }) => {
         imageReloadEvery,
         calendarUpdateTime,
         calendarRetryTime,
-        reverseContent
+        reverseContent,
 	};
 };
