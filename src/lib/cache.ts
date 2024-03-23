@@ -1,61 +1,57 @@
 import { isAfter, addMilliseconds } from 'date-fns';
+import { Mutex } from 'async-mutex';
 
 export class Cached<T> {
-	private value: T | null = null;
-	private promise: Promise<T> | null = null;
+	private mutex: Mutex
+	private getter: () => Promise<T>;
+	private value: Promise<T> | null = null;
 	private expiresAt: Date | null = null;
+
 	private defaultTTL: number = 1000 * 30; // 30 seconds
 
-	constructor(private getter: () => Promise<T>, defaultTTL?: number) {
+	constructor(
+		getter: () => Promise<T>,
+		defaultTTL?: number
+	) {
+		this.mutex = new Mutex();
+
+		this.getter = getter;
+
 		if (defaultTTL) {
 			this.defaultTTL = defaultTTL;
 		}
 	}
 
-	async get(expires = true): Promise<T> {
-		if (this.value) {
-			if (!this.expiresAt || isAfter(new Date(), this.expiresAt)) {
-				return this.value;
-			}
+	async get(forceRefresh = false): Promise<T> {
+		if (forceRefresh) {
+			await this.invalidate();
 		}
 
-		if (this.promise) {
-			return this.promise;
+		if (this.expiresAt && isAfter(new Date(), this.expiresAt)) {
+			await this.invalidate();
 		}
 
-		this.promise = this.getter().then((value) => {
-			this.value = value;
-			if (expires) {
-				this.expiresAt = addMilliseconds(new Date(), this.defaultTTL);
-			} else {
-				this.expiresAt = null;
-			}
-			return value;
-		});
 
-		return this.promise;
+		const release = await this.mutex.acquire();
+		if (!this.value) {
+			this.value = this.getter().then((value) => {
+                this.expiresAt = addMilliseconds(new Date(), this.defaultTTL);
+                return value;
+            });
+		}
+		
+		release();
+		return this.value;
 	}
 
 	async invalidate(): Promise<void> {
 		this.value = null;
-		this.promise = null;
 		this.expiresAt = null;
 	}
 
-	async setValue(value: T, expires = true): Promise<void> {
-		this.value = value;
-		if (expires) {
-			this.expiresAt = addMilliseconds(new Date(), this.defaultTTL);
-		} else {
-			this.expiresAt = null;
-		}
+	async setValue(value: T): Promise<void> {
+		this.expiresAt = addMilliseconds(new Date(), this.defaultTTL);
 
-		this.promise = Promise.resolve(value);
+		this.value = Promise.resolve(value);
 	}
 }
-
-export type ConvertFields<T, V> = T extends string | number | boolean | undefined
-	? V
-	: T extends object
-	? { [K in keyof T]: ConvertFields<T[K], V> }
-	: never;
