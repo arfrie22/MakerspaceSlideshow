@@ -16,7 +16,7 @@ interface GetImagesResults {
 		total: number;
 		page: number;
 		pages: number;
-	}
+	};
 }
 
 export const GET: RequestHandler = async () => {
@@ -25,31 +25,29 @@ export const GET: RequestHandler = async () => {
 	let images: string[] = [];
 
 	while (!done) {
-		const response = await fetch(`${env.PICSUR_ENDPOINT}/api/image/list`,
-			{
-				method: 'POST',
-				mode: 'cors',
-				headers: {
-					"Authorization": `Api-Key ${env.PICSUR_APIKEY}`,
-					"Content-Type": "application/json"
-				},
+		const response = await fetch(`${env.PICSUR_ENDPOINT}/api/image/list`, {
+			method: 'POST',
+			mode: 'cors',
+			headers: {
+				Authorization: `Api-Key ${env.PICSUR_APIKEY}`,
+				'Content-Type': 'application/json'
+			},
 
-				body: JSON.stringify({
-					page: page,
-					count: 100,
-				})
-			}
-		);
+			body: JSON.stringify({
+				page: page,
+				count: 100
+			})
+		});
 
-		const result = await response.json() as GetImagesResults;
-		images = images.concat(result.data.results.map(r => `/api/image/${r.id}`));
+		const result = (await response.json()) as GetImagesResults;
+		images = images.concat(result.data.results.map((r) => `/api/image/${r.id}`));
 
 		done = ++page >= result.data.pages;
 	}
-	
+
 	return new Response(JSON.stringify({ images }), {
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
-    });
+		headers: {
+			'content-type': 'application/json;charset=UTF-8'
+		}
+	});
 };

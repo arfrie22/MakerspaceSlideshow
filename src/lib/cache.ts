@@ -6,10 +6,7 @@ export class Cached<T> {
 	private expiresAt: Date | null = null;
 	private defaultTTL: number = 1000 * 30; // 30 seconds
 
-	constructor(
-		private getter: () => Promise<T>,
-		defaultTTL?: number
-	) {
+	constructor(private getter: () => Promise<T>, defaultTTL?: number) {
 		if (defaultTTL) {
 			this.defaultTTL = defaultTTL;
 		}
@@ -60,5 +57,5 @@ export class Cached<T> {
 export type ConvertFields<T, V> = T extends string | number | boolean | undefined
 	? V
 	: T extends object
-		? { [K in keyof T]: ConvertFields<T[K], V> }
-		: never;
+	? { [K in keyof T]: ConvertFields<T[K], V> }
+	: never;

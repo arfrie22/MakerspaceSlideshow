@@ -1,450 +1,480 @@
 <script lang="ts">
-    import { fade } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import type { DateRange, DaySchedule, RoomStatus, ScheduleRanges } from '$lib/types';
 	import type { EventJSON } from '$lib/calendar';
 	import { onMount } from 'svelte';
-    import { page } from '$app/stores';
-    import { isSameDay, addDays, format, startOfDay, isAfter, isBefore, max, min, endOfDay, isEqual, isWithinInterval } from 'date-fns';
+	import { page } from '$app/stores';
+	import {
+		isSameDay,
+		addDays,
+		format,
+		startOfDay,
+		isAfter,
+		isBefore,
+		max,
+		min,
+		endOfDay,
+		isEqual,
+		isWithinInterval
+	} from 'date-fns';
 
-    async function getImages(): Promise<string[]> {
-        const res = await fetch('/api/images');
-        const data = await res.json();
-        return data.images;
-    }
+	async function getImages(): Promise<string[]> {
+		const res = await fetch('/api/images');
+		const data = await res.json();
+		return data.images;
+	}
 
-    let images: string[] = [];
-    let imagesShown = 0;
-    let imageLoopDelayMap = new Map<string, number>();
+	let images: string[] = [];
+	let imagesShown = 0;
+	let imageLoopDelayMap = new Map<string, number>();
 
-    let currentImageURL = '';
-    let nextImageURL = '';
-    let showImage = false;
+	let currentImageURL = '';
+	let nextImageURL = '';
+	let showImage = false;
 
-    let schedule: DaySchedule[] = [];
-    let roomStatus: RoomStatus = {open: false, until: ''};
+	let schedule: DaySchedule[] = [];
+	let roomStatus: RoomStatus = { open: false, until: '' };
 
-    async function queueNextImage() {
-        if (imagesShown >= $page.data.imageReloadEvery) {
-            await load();
-            return;
-        }
+	async function queueNextImage() {
+		if (imagesShown >= $page.data.imageReloadEvery) {
+			await load();
+			return;
+		}
 
-        imagesShown++;
-        const validImages: string[] = [];
-        imageLoopDelayMap.forEach((v, k) => {
-            if (v <= 0) {
-                validImages.push(k);
-            } else {
-                imageLoopDelayMap.set(k, v - 1);
-            }
-        });
-        
-        const image = validImages[Math.floor(Math.random() * validImages.length)];
-        
-        try {
-            let res = await fetch(image);
-            let blob = await res.blob();
-            imageLoopDelayMap.set(image, $page.data.imageLoopDelay);
+		imagesShown++;
+		const validImages: string[] = [];
+		imageLoopDelayMap.forEach((v, k) => {
+			if (v <= 0) {
+				validImages.push(k);
+			} else {
+				imageLoopDelayMap.set(k, v - 1);
+			}
+		});
 
-            nextImageURL = URL.createObjectURL(blob);
-            showImage = false;
-        } catch (e) {
-            console.error(e);
-            await queueNextImage();
-        }
-    }
+		const image = validImages[Math.floor(Math.random() * validImages.length)];
 
-    const delayedQueueNextImage = () => window.setTimeout(queueNextImage, $page.data.imageHoldTime);
+		try {
+			let res = await fetch(image);
+			let blob = await res.blob();
+			imageLoopDelayMap.set(image, $page.data.imageLoopDelay);
 
-    function fadeInNextImage() {
-        URL.revokeObjectURL(currentImageURL);
-        currentImageURL = nextImageURL;
-        showImage = true;
-    }
+			nextImageURL = URL.createObjectURL(blob);
+			showImage = false;
+		} catch (e) {
+			console.error(e);
+			await queueNextImage();
+		}
+	}
 
-    function getRoomStatusSubTitle(until?: Date): string {
-        if (until) {
-            if (isSameDay(until, new Date())) {
-                return `until ${format(until, 'h:mm a')}`;
-            } else if (isSameDay(until, addDays(new Date(), 1))) {
-                return `until ${format(until, 'h:mm a')} tomorrow`;
-            } else {
-                return `until ${format(until, 'EEEE h:mm a')}`;
-            }
-        } else {
-            return '';
-        }
-    }
+	const delayedQueueNextImage = () => window.setTimeout(queueNextImage, $page.data.imageHoldTime);
 
-    function getDaySchedule(data: EventJSON[]): DaySchedule[] {
-    const now = new Date();
-    const startTime = startOfDay(now);
-    const endTime = addDays(startTime, 7);
-    
-    const ranges = Array<DateRange[]>(7);
-    for (let i = 0; i < 7; i++) {
-        ranges[i] = [];
-    }
-    
-    return data.filter(e => {
-        return e.title.toLowerCase().includes('open');
-    }).map(e => {
-        return {
-            start: max([new Date(e.start), startTime]),
-            end: min([new Date(e.end), endTime])
-        } as DateRange;
-    }).filter(e => {
-        if (isBefore(e.end, startTime)) {
-            return false;
-        }
+	function fadeInNextImage() {
+		URL.revokeObjectURL(currentImageURL);
+		currentImageURL = nextImageURL;
+		showImage = true;
+	}
 
-        if (isAfter(e.start, endTime)) {
-            return false;
-        }
+	function getRoomStatusSubTitle(until?: Date): string {
+		if (until) {
+			if (isSameDay(until, new Date())) {
+				return `until ${format(until, 'h:mm a')}`;
+			} else if (isSameDay(until, addDays(new Date(), 1))) {
+				return `until ${format(until, 'h:mm a')} tomorrow`;
+			} else {
+				return `until ${format(until, 'EEEE h:mm a')}`;
+			}
+		} else {
+			return '';
+		}
+	}
 
-        return true;
-    }).flatMap(e => {
-        let start = e.start;
-        const results = [];
+	function getDaySchedule(data: EventJSON[]): DaySchedule[] {
+		const now = new Date();
+		const startTime = startOfDay(now);
+		const endTime = addDays(startTime, 7);
 
-        while (start.getDay() !== e.end.getDay()) {
-            results.push({
-                start: start,
-                end: endOfDay(start)
-            } as DateRange);
-            start = startOfDay(addDays(start, 1));
-        }
+		const ranges = Array<DateRange[]>(7);
+		for (let i = 0; i < 7; i++) {
+			ranges[i] = [];
+		}
 
-        results.push({
-            start: start,
-            end: e.end
-        } as DateRange);
+		return data
+			.filter((e) => {
+				return e.title.toLowerCase().includes('open');
+			})
+			.map((e) => {
+				return {
+					start: max([new Date(e.start), startTime]),
+					end: min([new Date(e.end), endTime])
+				} as DateRange;
+			})
+			.filter((e) => {
+				if (isBefore(e.end, startTime)) {
+					return false;
+				}
 
-        return results;
-    }).reduce((acc, e) => {
-        const offset = (e.start.getDay() - now.getDay() + 7) % 7;
-        acc[offset].push(e);
+				if (isAfter(e.start, endTime)) {
+					return false;
+				}
 
-        return acc;
-    }, ranges).map(e => {
-        e = e.sort((a, b) => {
-            return isBefore(a.start, b.start) ? -1 : 1;
-        });
+				return true;
+			})
+			.flatMap((e) => {
+				let start = e.start;
+				const results = [];
 
-        if (e.length <= 1) {
-            return e;
-        }
+				while (start.getDay() !== e.end.getDay()) {
+					results.push({
+						start: start,
+						end: endOfDay(start)
+					} as DateRange);
+					start = startOfDay(addDays(start, 1));
+				}
 
-        let index = 0;
+				results.push({
+					start: start,
+					end: e.end
+				} as DateRange);
 
-        while (index < e.length) {
-            for (let i = index + 1; i < e.length; i++) {
-                if (isAfter(e[index].end, e[i].start) || isEqual(e[index].end, e[i].start)) {
-                    if (isBefore(e[index].end, e[i].end) || isEqual(e[index].end, e[i].end)) {
-                        e[index].end = e[i].end;
-                    }
+				return results;
+			})
+			.reduce((acc, e) => {
+				const offset = (e.start.getDay() - now.getDay() + 7) % 7;
+				acc[offset].push(e);
 
-                    e.splice(i, 1);
-                    i--;
-                }
-            }
+				return acc;
+			}, ranges)
+			.map((e) => {
+				e = e.sort((a, b) => {
+					return isBefore(a.start, b.start) ? -1 : 1;
+				});
 
-            index++;
-        }
+				if (e.length <= 1) {
+					return e;
+				}
 
-        return e;
-    }).map((e, i) => {
-        return {
-            ranges: e.map(e => {
-                return {
-                    start: e.start,
-                    end: e.end
-                } as DateRange;
-            }),
-            day: addDays(startTime, i)
-        } as DaySchedule;
-    });
-}
+				let index = 0;
 
-export function getRoomStatus(schedule: DaySchedule[]): RoomStatus {
-    const now = new Date();
+				while (index < e.length) {
+					for (let i = index + 1; i < e.length; i++) {
+						if (isAfter(e[index].end, e[i].start) || isEqual(e[index].end, e[i].start)) {
+							if (isBefore(e[index].end, e[i].end) || isEqual(e[index].end, e[i].end)) {
+								e[index].end = e[i].end;
+							}
 
-    for (let i = 0; i < schedule.length; i++) {
-        for (let j = 0; j < schedule[i].ranges.length; j++) {
-            const range = schedule[i].ranges[j];
-            if (isWithinInterval(now, {start: range.start, end: range.end})) {
-                return {
-                    open: true,
-                    until: getRoomStatusSubTitle(range.end)
-                };
-            } else if (isBefore(now, range.start)) {
-                return {
-                    open: false,
-                    until: getRoomStatusSubTitle(range.start)
-                };
-            }
-        }
-    }
+							e.splice(i, 1);
+							i--;
+						}
+					}
 
-    return {
-        open: false,
-        until: ''
-    };
-}
+					index++;
+				}
 
-export function getScheduleRanges(schedule: DaySchedule[]): ScheduleRanges[] {
-    return schedule.map(e => {
-        if (e.ranges.length === 0) {
-            return {day: e.day, ranges: ['Closed']} as ScheduleRanges;
-        }
+				return e;
+			})
+			.map((e, i) => {
+				return {
+					ranges: e.map((e) => {
+						return {
+							start: e.start,
+							end: e.end
+						} as DateRange;
+					}),
+					day: addDays(startTime, i)
+				} as DaySchedule;
+			});
+	}
 
-        return {day: e.day, ranges: e.ranges.map(e => {
-            return `${format(e.start, 'h:mm a')} - ${format(e.end, 'h:mm a')}`;
-        })} as ScheduleRanges;
-    });
-}
+	export function getRoomStatus(schedule: DaySchedule[]): RoomStatus {
+		const now = new Date();
 
-    async function updateHours() {
-        try {
-            const now = new Date();
-            const startTime = startOfDay(now);
-            const endTime = addDays(startTime, 7);
-        const res = await fetch('/api/calendar?start=' + startTime.toISOString() + '&end=' + endTime.toISOString());
-        const data = await res.json() as EventJSON[];
+		for (let i = 0; i < schedule.length; i++) {
+			for (let j = 0; j < schedule[i].ranges.length; j++) {
+				const range = schedule[i].ranges[j];
+				if (isWithinInterval(now, { start: range.start, end: range.end })) {
+					return {
+						open: true,
+						until: getRoomStatusSubTitle(range.end)
+					};
+				} else if (isBefore(now, range.start)) {
+					return {
+						open: false,
+						until: getRoomStatusSubTitle(range.start)
+					};
+				}
+			}
+		}
 
-        schedule = getDaySchedule(data);
+		return {
+			open: false,
+			until: ''
+		};
+	}
 
-        roomStatus = getRoomStatus(schedule);
+	export function getScheduleRanges(schedule: DaySchedule[]): ScheduleRanges[] {
+		return schedule.map((e) => {
+			if (e.ranges.length === 0) {
+				return { day: e.day, ranges: ['Closed'] } as ScheduleRanges;
+			}
 
-        window.setTimeout(updateHours, $page.data.calendarUpdateTime);
-        } catch (e) {
-            console.error(e);
-            window.setTimeout(updateHours, $page.data.calendarRetryTime);
-        }
-    }
+			return {
+				day: e.day,
+				ranges: e.ranges.map((e) => {
+					return `${format(e.start, 'h:mm a')} - ${format(e.end, 'h:mm a')}`;
+				})
+			} as ScheduleRanges;
+		});
+	}
 
-    async function load() {
-        images = await getImages();
-        imagesShown = 0;
-        imageLoopDelayMap = new Map<string, number>();
-        images.forEach(i => imageLoopDelayMap.set(i, 0));
-        await queueNextImage();
-        fadeInNextImage();
-        updateHours();
-    }
+	async function updateHours() {
+		try {
+			const now = new Date();
+			const startTime = startOfDay(now);
+			const endTime = addDays(startTime, 7);
+			const res = await fetch(
+				'/api/calendar?start=' + startTime.toISOString() + '&end=' + endTime.toISOString()
+			);
+			const data = (await res.json()) as EventJSON[];
 
+			schedule = getDaySchedule(data);
 
-    onMount(() => {
-        load();
-    });
+			roomStatus = getRoomStatus(schedule);
+
+			window.setTimeout(updateHours, $page.data.calendarUpdateTime);
+		} catch (e) {
+			console.error(e);
+			window.setTimeout(updateHours, $page.data.calendarRetryTime);
+		}
+	}
+
+	async function load() {
+		images = await getImages();
+		imagesShown = 0;
+		imageLoopDelayMap = new Map<string, number>();
+		images.forEach((i) => imageLoopDelayMap.set(i, 0));
+		await queueNextImage();
+		fadeInNextImage();
+		updateHours();
+	}
+
+	onMount(() => {
+		load();
+	});
 </script>
 
 <div class="page">
-    <div class="content" class:reverse={$page.data.reverseContent}>
-        <div class="hours">
-            <div class="title">Hours</div>
-            <div class="schedule">
-                {#each getScheduleRanges(schedule) as days}
-                    <div class="range">
-                        <div class="day">{format(days.day, 'EEEE')}</div>
-                        <div class="times">
-                            {#each days.ranges as time}
-                                <div class="time">{time}</div>
-                            {/each}
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        </div>
+	<div class="content" class:reverse={$page.data.reverseContent}>
+		<div class="hours">
+			<div class="title">Hours</div>
+			<div class="schedule">
+				{#each getScheduleRanges(schedule) as days}
+					<div class="range">
+						<div class="day">{format(days.day, 'EEEE')}</div>
+						<div class="times">
+							{#each days.ranges as time}
+								<div class="time">{time}</div>
+							{/each}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
 
-        <div class="slideshow">
-            {#if showImage}
-                <img src={currentImageURL} alt="" class="image" in:fade={{duration: $page.data.imageFadeInTime}} out:fade={{duration: $page.data.imageFadeOutTime}} on:introend={delayedQueueNextImage} on:outroend={fadeInNextImage}/>
-            {/if}
-        </div>
-    </div>
-    
-    <div class="footer">
-        <div class="logos">
-            <img src="/logo.svg" class="gear" alt="Makerspace Logo"/>
-            <img src="/makerspace.png" class="logo" alt="UMass Amherst | Makerspace"/>
-        </div>
-        <div class="nowWrapper">
-            <div class="now">
-                {#if roomStatus.open}
-                    <div class="open nowText">OPEN</div>
-                    <div class="subtitle">{roomStatus.until}</div>
-                {:else}
-                    <div class="closed nowText">CLOSED</div>
-                    <div class="subtitle">{roomStatus.until}</div>
-                {/if}
-            </div>
-        </div>
-    </div>
+		<div class="slideshow">
+			{#if showImage}
+				<img
+					src={currentImageURL}
+					alt=""
+					class="image"
+					in:fade={{ duration: $page.data.imageFadeInTime }}
+					out:fade={{ duration: $page.data.imageFadeOutTime }}
+					on:introend={delayedQueueNextImage}
+					on:outroend={fadeInNextImage}
+				/>
+			{/if}
+		</div>
+	</div>
+
+	<div class="footer">
+		<div class="logos">
+			<img src="/logo.svg" class="gear" alt="Makerspace Logo" />
+			<img src="/makerspace.png" class="logo" alt="UMass Amherst | Makerspace" />
+		</div>
+		<div class="nowWrapper">
+			<div class="now">
+				{#if roomStatus.open}
+					<div class="open nowText">OPEN</div>
+					<div class="subtitle">{roomStatus.until}</div>
+				{:else}
+					<div class="closed nowText">CLOSED</div>
+					<div class="subtitle">{roomStatus.until}</div>
+				{/if}
+			</div>
+		</div>
+	</div>
 </div>
 
 <style lang="scss">
-    @font-face {
-        font-family: OpenSans;
-        src: url(/fonts/OpenSans-Regular.ttf);
-    }
+	@font-face {
+		font-family: OpenSans;
+		src: url(/fonts/OpenSans-Regular.ttf);
+	}
 
-    .title {
-        font-family: OpenSans;
-        font-size: 10vh;
-        color: white;
-    }
+	.title {
+		font-family: OpenSans;
+		font-size: 10vh;
+		color: white;
+	}
 
-    .page {
-        position: absolute;
-        top: 0;
-        left: 0;
-        
-        width: 100dvw;
-        height: 100dvh;
-        background-color: #111213;
-        font-family: OpenSans;
+	.page {
+		position: absolute;
+		top: 0;
+		left: 0;
 
-        display: flex;
-        flex-direction: column;
-    }
+		width: 100dvw;
+		height: 100dvh;
+		background-color: #111213;
+		font-family: OpenSans;
 
-    .content {
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-        align-items: stretch;
-        flex: 1;
-        height: 85dvh;
-        gap: 20vh;
-        padding: 5vh 5vw;
-    }
+		display: flex;
+		flex-direction: column;
+	}
 
-    .content.reverse {
-        flex-direction: row-reverse;
-    }
-    
-    .footer {
-        color: #111213;
-        font-family: OpenSans;
+	.content {
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+		align-items: stretch;
+		flex: 1;
+		height: 85dvh;
+		gap: 20vh;
+		padding: 5vh 5vw;
+	}
 
-        height: 15dvh;
-        background-color: #f1f3f9;
-        padding: 0 10vmin;
-        display: flex;
-    }
+	.content.reverse {
+		flex-direction: row-reverse;
+	}
 
-    .footer > * {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+	.footer {
+		color: #111213;
+		font-family: OpenSans;
 
-    .logos {
-        display: flex;
-        flex-direction: row;
-        justify-content: left;
-        gap: 1vw;
-    }
+		height: 15dvh;
+		background-color: #f1f3f9;
+		padding: 0 10vmin;
+		display: flex;
+	}
 
-    .gear {
-        object-fit: contain;
-        height: 100%;
-    }
+	.footer > * {
+		flex: 1;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
 
-    .logo {
-        object-fit: contain;
-        height: 100%;
-        width: 100%;
-        flex: 1;
-    }
+	.logos {
+		display: flex;
+		flex-direction: row;
+		justify-content: left;
+		gap: 1vw;
+	}
 
-    .now {
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-        align-items: center;
-        gap: 2vw;
-    }
+	.gear {
+		object-fit: contain;
+		height: 100%;
+	}
 
-    .nowText {
-        font-size: 8vh;
-    }
+	.logo {
+		object-fit: contain;
+		height: 100%;
+		width: 100%;
+		flex: 1;
+	}
 
-    .open {
-        color: #28a745;
-    }
+	.now {
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		gap: 2vw;
+	}
 
-    .closed {
-        color: #dc3545;
-    }
+	.nowText {
+		font-size: 8vh;
+	}
 
-    .subtitle {
-        font-size: 4vh;
-    }
+	.open {
+		color: #28a745;
+	}
 
-    .hours {
-        color: #f1f3f9;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 1vh;
-        
-        min-width: 40vmin;
-    }
+	.closed {
+		color: #dc3545;
+	}
 
+	.subtitle {
+		font-size: 4vh;
+	}
 
-    .schedule:before {
-        content: "";
-        border: 1px solid #f1f3f9;
-        align-self: stretch;
-    }
+	.hours {
+		color: #f1f3f9;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		gap: 1vh;
 
-    .schedule {
-        display: flex;
-        flex-direction: column;
-        justify-content: stretch;
-        align-items: center;
-        gap: 2vh;
-    }
+		min-width: 40vmin;
+	}
 
-    .range {
-        display: flex;
-        flex-direction: row;
-        justify-content: stretch;
-        align-items: top;
-        width: 100%;
-        gap: 2vw;
-    }
+	.schedule:before {
+		content: '';
+		border: 1px solid #f1f3f9;
+		align-self: stretch;
+	}
 
-    .day {
-        font-size: 4vh;
-        justify-self: left;
-    }
+	.schedule {
+		display: flex;
+		flex-direction: column;
+		justify-content: stretch;
+		align-items: center;
+		gap: 2vh;
+	}
 
-    .times {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: end;
-        flex: 1;
-        gap: 0.75vh;
-        font-size: 2vh;
-    }
+	.range {
+		display: flex;
+		flex-direction: row;
+		justify-content: stretch;
+		align-items: top;
+		width: 100%;
+		gap: 2vw;
+	}
 
-    .slideshow {
-        flex: 1;
-        display: flex;
-        justify-content: stretch;
-        align-items: stretch;
-    }
+	.day {
+		font-size: 4vh;
+		justify-self: left;
+	}
 
-    .image {
-        height: 100%;
-        width: 100%;
-        object-fit: contain;
-    }
+	.times {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: end;
+		flex: 1;
+		gap: 0.75vh;
+		font-size: 2vh;
+	}
+
+	.slideshow {
+		flex: 1;
+		display: flex;
+		justify-content: stretch;
+		align-items: stretch;
+	}
+
+	.image {
+		height: 100%;
+		width: 100%;
+		object-fit: contain;
+	}
 </style>
