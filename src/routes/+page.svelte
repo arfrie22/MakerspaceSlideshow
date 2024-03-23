@@ -291,11 +291,10 @@
 			<div class="now">
 				{#if roomStatus.open}
 					<div class="open nowText">OPEN</div>
-					<div class="subtitle">{roomStatus.until}</div>
 				{:else}
 					<div class="closed nowText">CLOSED</div>
-					<div class="subtitle">{roomStatus.until}</div>
 				{/if}
+				<div class="subtitle">until {roomStatus.until}</div>
 			</div>
 		</div>
 	</div>
