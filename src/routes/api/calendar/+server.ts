@@ -20,8 +20,6 @@ export const GET: RequestHandler = async ({ fetch, getClientAddress, url }) => {
 		}, cacheTime);
 	}
 
-	console.log(`GET /api/calendar from ${getClientAddress()}`);
-
 	const start = url.searchParams.get('start');
 	if (!start) error(400, 'No start date provided');
 
