@@ -44,7 +44,7 @@ jobs:
       matrix:
         include:
           - image: makerspace-slideshow
-            context: frontend
+            context: .
             file: frontend/Dockerfile
             platforms: linux/amd64,linux/arm64
 
