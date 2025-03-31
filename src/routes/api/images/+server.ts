@@ -2,47 +2,27 @@ import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
 interface GetImagesResults {
-	success: boolean;
-	status: number;
-	timestamp: string;
-	timeMs: number;
-	data: {
-		results: {
-			id: string;
-			user_id: string;
-			created: string;
-			file_name: string;
-		}[];
-		total: number;
-		page: number;
-		pages: number;
-	};
+    UID: string;
 }
 
 export const GET: RequestHandler = async () => {
-	let page = 0;
 	let done = false;
 	let images: string[] = [];
 
 	while (!done) {
-		const response = await fetch(`${env.PICSUR_ENDPOINT}/api/image/list`, {
-			method: 'POST',
+		const response = await fetch(`${env.PHOTOPRISM_ENDPOINT}/api/v1/photos?count=1000&quality=0&offset=${images.length}`, {
+			method: 'GET',
 			mode: 'cors',
 			headers: {
-				Authorization: `Api-Key ${env.PICSUR_APIKEY}`,
-				'Content-Type': 'application/json'
+				Authorization: `Bearer ${env.PHOTOPRISM_TOKEN}`,
+				'Accepts': 'application/json'
 			},
-
-			body: JSON.stringify({
-				page: page,
-				count: 100
-			})
 		});
 
-		const result = (await response.json()) as GetImagesResults;
-		images = images.concat(result.data.results.map((r) => `/api/image/${r.id}`));
+		const result = (await response.json()) as GetImagesResults[];
+		images = images.concat(result.map((r) => `/api/image/${r.UID}`));
 
-		done = ++page >= result.data.pages;
+		done = result.length == 0;
 	}
 
 	return new Response(JSON.stringify({ images }), {
