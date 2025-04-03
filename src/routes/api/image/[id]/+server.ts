@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 	}
 
 	const data = await fetch(
-		`${env.PHOTOPRISM_ENDPOINT}/api/v1/photos/${params.id}/dl?t=${await downloadToken.get()}`
+		`${env.PHOTOPRISM_ENDPOINT}/api/v1/t/${params.id}/${await downloadToken.get()}/fit_2560/`
 	);
 	return new Response(data.body, {
 		headers: {

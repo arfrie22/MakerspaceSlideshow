@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 
 interface GetImagesResults {
 	UID: string;
+	Hash: string;
 }
 
 export const GET: RequestHandler = async () => {
@@ -23,7 +24,7 @@ export const GET: RequestHandler = async () => {
 		);
 
 		const result = (await response.json()) as GetImagesResults[];
-		images = images.concat(result.map((r) => `/api/image/${r.UID}`));
+		images = images.concat(result.map((r) => `/api/image/${r.Hash}`));
 
 		done = result.length == 0;
 	}
