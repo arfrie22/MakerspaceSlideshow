@@ -6,7 +6,7 @@ import { error } from '@sveltejs/kit';
 
 let calendar: Cached<CalendarSet> | undefined = undefined;
 
-export const GET: RequestHandler = async ({ fetch, getClientAddress, url }) => {
+export const GET: RequestHandler = async ({ fetch, url }) => {
 	if (!calendar) {
 		const cacheTime = Number.parseInt(env.GOOGLE_CALENDAR_CACHE_TIME || '');
 		if (!Number.isInteger(cacheTime)) error(500, 'Invalid cache time');
@@ -26,9 +26,19 @@ export const GET: RequestHandler = async ({ fetch, getClientAddress, url }) => {
 	const end = url.searchParams.get('end');
 	if (!end) error(400, 'No end date provided');
 
-	const cal = await calendar.get();
+    let cal;
+    
+    try {
+        cal = await calendar.get();
+    } catch (e) {
+        calendar = undefined;
+        console.error(e);
+        error(500, {
+            message: 'Internal Service Error'
+        });
+    }
 
-	return new Response(JSON.stringify(cal.between(new Date(start || ''), new Date(end || ''))), {
+	return new Response(JSON.stringify(cal?.between(new Date(start || ''), new Date(end || ''))), {
 		headers: {
 			'content-type': 'application/json;charset=UTF-8'
 		}
