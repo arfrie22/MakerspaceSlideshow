@@ -26,17 +26,17 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
 	const end = url.searchParams.get('end');
 	if (!end) error(400, 'No end date provided');
 
-    let cal;
-    
-    try {
-        cal = await calendar.get();
-    } catch (e) {
-        calendar = undefined;
-        console.error(e);
-        error(500, {
-            message: 'Internal Service Error'
-        });
-    }
+	let cal;
+
+	try {
+		cal = await calendar.get();
+	} catch (e) {
+		calendar = undefined;
+		console.error(e);
+		error(500, {
+			message: 'Internal Service Error'
+		});
+	}
 
 	return new Response(JSON.stringify(cal?.between(new Date(start || ''), new Date(end || ''))), {
 		headers: {

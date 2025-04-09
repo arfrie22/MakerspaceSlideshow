@@ -21,20 +21,18 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 		}, 60 * 1000);
 	}
 
-    let token;
-    try {
-        token = await downloadToken.get();
-    } catch (e) {
-        downloadToken = undefined;
-        console.error(e);
-        error(500, {
+	let token;
+	try {
+		token = await downloadToken.get();
+	} catch (e) {
+		downloadToken = undefined;
+		console.error(e);
+		error(500, {
 			message: 'Internal Service Error'
 		});
-    }
+	}
 
-	const data = await fetch(
-		`${env.PHOTOPRISM_ENDPOINT}/api/v1/t/${params.id}/${token}/fit_2560/`
-	);
+	const data = await fetch(`${env.PHOTOPRISM_ENDPOINT}/api/v1/t/${params.id}/${token}/fit_2560/`);
 	return new Response(data.body, {
 		headers: {
 			'content-type': 'image/jpeg'
